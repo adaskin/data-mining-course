@@ -1,6 +1,6 @@
 # teaching-data-mining
 # ammar daskin - Data Mining
-Monday 8:30pm on zoom & K401
+taught in 2021
 
 You are expected to have prior programming experience, basic understanding of data structure, algorithms, linear algebra, probability and statistics. 
 
