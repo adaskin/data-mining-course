@@ -1,8 +1,7 @@
 
+
 # **ML in the Wild: From Notebook to Production**
-
 *prepared with DeepSeek AI assistant*
-
 
 ---
 
@@ -30,6 +29,88 @@ What do you need besides a high F1‑score for a model to be useful in a company
 
 ---
 
+##  **Examples from PCA & Anomaly Detection**
+
+- You can use **PCA** when you need lighter, faster models without rebuilding everything.  
+- You can use **Anomaly Detection** as your first line of defence for **monitoring** model inputs and detecting broken pipelines.
+
+---
+
+### **PCA – Principal Component Analysis (Week 11 Refresher)**
+
+**What it does:**  
+- Finds the directions (principal components) of **maximum variance** in the data  
+- Transforms high‑dimensional data into a **lower‑dimensional** representation while preserving as much information as possible
+
+---
+
+
+**Common uses:**  
+- **Visualisation** – project high‑D data onto 2D/3D  
+- **Noise filtering** – discard low‑variance components  
+- **Feature compression** – speed up training/inference, remove correlated features
+
+---
+
+**Production relevance:**  
+- Compressing input features before serving can **reduce latency** and storage  
+- Removing redundant features can help prevent **train/serve skew** due to unstable correlated fields
+
+---
+
+### **Example: PCA on Iris (from 4D to 2D)**
+```python
+from sklearn.decomposition import PCA
+from sklearn.datasets import load_iris
+
+X, _ = load_iris(return_X_y=True)
+pca = PCA(n_components=2)
+X_2d = pca.fit_transform(X)
+# X_2d now has shape (150, 2) – ready for visualisation or a lighter model
+```
+
+📘 *[PCA – scikit‑learn user guide](https://scikit-learn.org/stable/modules/decomposition.html#pca)*
+
+---
+
+## **Anomaly Detection**
+
+**What it does:**  
+- Identifies **rare or unusual** observations that differ significantly from the majority of the data  
+- Often unsupervised – no labels needed
+
+---
+
+**Common approaches:**  
+- **Isolation Forest** – explicitly isolates anomalies using random splits  
+- **One‑Class SVM** – learns a boundary around the “normal” region  
+- **DBSCAN / LOF** – density‑based outlier detection  
+- **Autoencoders** – reconstruction error as anomaly score
+
+---
+
+**Production relevance (direct connection!):**  
+- **Data quality monitoring** – flag when incoming features look “abnormal”  
+- **Drift detection** – if a sudden spike in anomaly score appears, something has changed  
+- **Fraud / fault detection** – real‑time alerting
+
+---
+
+### **Example: Isolation Forest for Outlier Detection**
+```python
+from sklearn.ensemble import IsolationForest
+import numpy as np
+
+X = np.random.randn(1000, 2)               # normal data
+X[0:10] = np.random.randn(10, 2) * 10      # outliers
+clf = IsolationForest(contamination=0.05).fit(X)
+scores = clf.decision_function(X)           # negative = anomaly
+```
+
+📘 *[Isolation Forest – scikit‑learn documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html)*
+
+---
+
 ## **2. Key Conceptual Differences**
 
 ### **2.1 Training ≠ Inference**
@@ -42,14 +123,22 @@ What do you need besides a high F1‑score for a model to be useful in a company
 - **Term:** **Inference** – the process of using a trained model to make predictions on new data.  
   *[Wikipedia: Statistical Inference](https://en.wikipedia.org/wiki/Statistical_inference)*
 
+
+---
+
 ### **2.2 Reproducibility**
 - Can I re‑run the same notebook 6 months later and get exactly the same model?  
+
+---
+
 - Essential ingredients:  
   - Keep a `requirements.txt` (library versions)  
   - Use a fixed random seed  
   - Document data preprocessing steps  
 - **Term:** **Reproducibility** – obtaining consistent results using the same input data, code, and environment.  
   *[The Turing Way – Reproducible Research](https://the-turing-way.netlify.app/reproducible-research/reproducible-research.html)*
+
+---
 
 ### **2.3 Batch vs. Real‑time Serving**
 | Batch Prediction | Real‑time API |
@@ -60,8 +149,12 @@ What do you need besides a high F1‑score for a model to be useful in a company
 
 - Most course exercises assume batch. Real‑world often needs **REST APIs**.
 
+---
+
 - **Term:** **API (Application Programming Interface)** – a set of rules allowing one piece of software to talk to another. In ML, usually a web API that receives data and returns predictions.  
   *[What is an API?](https://www.redhat.com/en/topics/api/what-are-application-programming-interfaces)*
+
+---
 
 ### **2.4 Train/Serve Skew**
 - Feature distributions in production can drift from training data  
@@ -74,6 +167,8 @@ What do you need besides a high F1‑score for a model to be useful in a company
 
 We will use the **Iris dataset** and a **Random Forest classifier** (you know it from Week 8). No new algorithm, just a recap.
 
+---
+
 ### **3.1 Train and Save the Model**
 ```python
 # train_model.py
@@ -82,7 +177,11 @@ from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import joblib
+```
 
+---
+
+```python
 # Load data
 iris = load_iris()
 X = pd.DataFrame(iris.data, columns=iris.feature_names)
@@ -92,11 +191,19 @@ y = iris.target
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
+```
 
+----
+
+```python
 # Train a simple model
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
+```
 
+---
+
+```
 # Save the model to disk
 joblib.dump(model, 'iris_model.joblib')
 print("Model saved!")
@@ -117,18 +224,30 @@ print("Model saved!")
 pip install flask joblib scikit-learn
 ```
 
+---
+
 ### **4.2 Minimal Flask Application**
 ```python
 # app.py
 from flask import Flask, request, jsonify
 import joblib
 import numpy as np
+```
 
+---
+
+```python
+# creates the Flask instance (current module).
 app = Flask(__name__)
+```
 
+```python
 # Load model once when the app starts
 model = joblib.load('iris_model.joblib')
+```
 
+```python
+#url route
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()   # read JSON from the request
@@ -140,6 +259,8 @@ def predict():
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 ```
+
+---
 
 ### **4.3 Test the API**
 Open another terminal and run:
@@ -155,6 +276,8 @@ Expected response:
 ```
 (0 corresponds to *setosa* in the Iris dataset)
 
+---
+
 ### **4.4 What’s missing? (Production gaps)**
 - **Input validation:** no check that `features` is a list of length 4  
 - **Error handling:** what if model input is malformed?  
@@ -169,6 +292,8 @@ But this is the **core pattern** – and a perfect starting point.
 
 Work in small groups of 3‑4. Choose **one** of the tasks below. We’ll discuss afterwards.
 
+---
+
 ### **Option A: System Design (No coding required)**
 Design a **pipeline diagram** for a *customer churn prediction* system that retrains monthly and serves via a REST API.  
 Include and label:  
@@ -180,6 +305,8 @@ Include and label:
 - Feedback loop (how to collect new labels?)
 
 Draw on paper / tablet and be ready to show 2‑3 groups.
+
+---
 
 ### **Option B: Code Extension (if you have a laptop)**
 Take the `app.py` above and add:
@@ -238,45 +365,11 @@ Take the `app.py` above and add:
 
 ---
 
-**Example Mermaid Diagram**
-
-```mermaid
-flowchart TD
-    subgraph Data [Monthly Batch]
-        A[(Customer DB)] --> B[Feature Store]
-        C[(Transactions)] --> B
-    end
-
-    subgraph Training [Training Pipeline (Monthly)]
-        B --> D[Time-based Split]
-        D --> E[Preprocessing & Scaling]
-        E --> F[Model Selection (CV)]
-        F --> G[Evaluation & Validation]
-        G --> H[Model Registry (joblib)]
-    end
-
-    subgraph Serving [Real-time API]
-        I[Client App] -->|POST /predict| J[Flask API]
-        J <-->|Load model| H
-        J --> K[Response: churn prob, prediction]
-    end
-
-    subgraph Monitoring [Monitoring & Drift]
-        J --> L[Log features & predictions]
-        L --> M[(Monitoring DB)]
-        M --> N[Drift Detection & Alerts]
-        O[Actual Churn Labels] -->|Feedback after 30d| M
-    end
-
-    H -->|Model update| J
-    O -->|New training data| B
-```
-
----
-
 ## **6. Monitoring and Maintenance**
 
 **Monitoring** answers: *Is my live model still working as expected?*
+
+---
 
 ### **6.1 What to Monitor (No New Tools)**
 - **Feature drift**: compute mean and variance of incoming features every hour. If the mean of “sepal length” jumps from 5.8 to 8.0 → alarm!  
@@ -284,9 +377,13 @@ flowchart TD
 - **Prediction distribution**: if a classifier suddenly always predicts class 0, something is broken (recall Week 5 evaluation metrics).  
 - **Performance metrics over time**: log true labels (if available) and compute accuracy, precision, recall daily.
 
+---
+
 **Connect to Week 12:**  
 Which technique can automatically flag abnormal incoming samples?  
 **Anomaly detection** – exactly what we covered in clustering & anomaly detection week. You can use a simple threshold on reconstruction error or density.
+
+---
 
 ### **6.2 Concept Drift**
 - **Definition:** The statistical properties of the target variable, which the model is trying to predict, change over time in unforeseen ways.  
@@ -307,6 +404,8 @@ Which technique can automatically flag abnormal incoming samples?
   *[Model Cards for Model Reporting (Google)](https://modelcards.withgoogle.com/about)*
 
 **Exercise:** For the Iris model we deployed, write a 2‑sentence model card. Who should use it? What are the risks?
+
+---
 
 ### **7.2 Communicating with Stakeholders**
 - You must explain to software engineers, product managers, and possibly regulators:
